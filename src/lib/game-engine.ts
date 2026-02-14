@@ -11,6 +11,7 @@ import { scoreRanking } from './scoring'
 
 const TARGET_NODES = 100
 const CANDIDATES_PER_ROUND = 5
+const UNLOCK_COST = 10
 
 let nextNodeId = 0
 function genNodeId(): string {
@@ -284,4 +285,4 @@ export function getRunSummary(state: GameState): RunSummary {
   }
 }
 
-export { TARGET_NODES, CANDIDATES_PER_ROUND }
+export { TARGET_NODES, CANDIDATES_PER_ROUND, UNLOCK_COST }
