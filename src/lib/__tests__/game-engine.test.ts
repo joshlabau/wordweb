@@ -9,7 +9,7 @@ import {
   isGameOver,
   getRunSummary,
   resetNodeIds,
-  INITIAL_TOKENS,
+  TARGET_NODES,
 } from '../game-engine'
 import type { GameData, GameState } from '@/types/game'
 
@@ -56,8 +56,8 @@ describe('game-engine', () => {
     it('creates initial game state with root node', () => {
       const state = createGame(42, stubGameData)
 
-      expect(state.tokens).toBe(INITIAL_TOKENS)
       expect(state.phase).toBe('IDLE')
+      expect(state.won).toBe(false)
       expect(state.graph.nodes).toHaveLength(1)
       expect(state.graph.nodes[0].depth).toBe(0)
       expect(state.graph.nodes[0].expanded).toBe(false)
@@ -177,37 +177,44 @@ describe('game-engine', () => {
       expect(result.accuracy).toBeGreaterThanOrEqual(0)
       expect(result.accuracy).toBeLessThanOrEqual(100)
       expect(newState.roundsPlayed).toBe(1)
+      expect(result.correctWords).toBeDefined()
     })
 
-    it('updates tokens based on result', () => {
+    it('identifies all correct words for perfect ranking', () => {
       let state = createGame(42, stubGameData)
       const rootId = state.graph.nodes[0].id
       state = expandNode(state, rootId)
 
+      // Submit perfect ranking (sorted by similarity descending)
       const sorted = [...state.currentRound!.candidates].sort(
         (a, b) => b.similarity - a.similarity
       )
-      const { state: newState } = submitRanking(
+      const { result } = submitRanking(
         state,
         sorted.map((c) => c.word)
       )
 
-      expect(newState.tokens).not.toBe(INITIAL_TOKENS)
+      expect(result.correctWords).toHaveLength(sorted.length)
+      expect(result.accuracy).toBe(100)
     })
   })
 
   describe('continue from evaluation', () => {
-    it('converts all candidates to permanent nodes and returns to IDLE', () => {
+    it('keeps only correctly-ranked candidates as permanent nodes', () => {
       let state = createGame(42, stubGameData)
       state = expandNode(state, state.graph.nodes[0].id)
       const numCandidates = state.currentRound!.candidates.length
-      const candidates = state.currentRound!.candidates.map((c) => c.word)
-      const { state: evaluated } = submitRanking(state, candidates)
+
+      // Submit perfect ranking so all candidates are kept
+      const sorted = [...state.currentRound!.candidates].sort(
+        (a, b) => b.similarity - a.similarity
+      )
+      const { state: evaluated } = submitRanking(state, sorted.map((c) => c.word))
 
       const continued = continueFromEvaluation(evaluated)
 
       expect(continued.phase).toBe('IDLE')
-      // Root + all candidates (now permanent)
+      // Root + all candidates (all correct)
       expect(continued.graph.nodes).toHaveLength(1 + numCandidates)
       // All nodes should be permanent (not candidates)
       const remainingCandidates = continued.graph.nodes.filter((n) => n.isCandidate)
@@ -215,28 +222,64 @@ describe('game-engine', () => {
       // Edges should all still be present
       expect(continued.graph.edges).toHaveLength(numCandidates)
     })
+
+    it('removes incorrectly-ranked candidates from the graph', () => {
+      let state = createGame(42, stubGameData)
+      state = expandNode(state, state.graph.nodes[0].id)
+
+      // Submit reversed ranking — some candidates will be wrong
+      const sorted = [...state.currentRound!.candidates].sort(
+        (a, b) => b.similarity - a.similarity
+      )
+      const reversed = [...sorted].reverse().map((c) => c.word)
+      const { state: evaluated, result } = submitRanking(state, reversed)
+
+      const numCorrect = result.correctWords.length
+      const continued = continueFromEvaluation(evaluated)
+
+      // Root + only correctly-ranked candidates
+      expect(continued.graph.nodes).toHaveLength(1 + numCorrect)
+      // Edges should match kept nodes
+      expect(continued.graph.edges).toHaveLength(numCorrect)
+      // No candidate nodes should remain
+      const remainingCandidates = continued.graph.nodes.filter((n) => n.isCandidate)
+      expect(remainingCandidates).toHaveLength(0)
+
+      // If no unexpanded nodes left, it's game over; otherwise IDLE
+      const hasUnexpanded = continued.graph.nodes.some((n) => !n.expanded)
+      if (hasUnexpanded) {
+        expect(continued.phase).toBe('IDLE')
+      } else {
+        expect(continued.phase).toBe('GAME_OVER')
+        expect(continued.won).toBe(false)
+      }
+    })
   })
 
-  describe('game over', () => {
-    it('triggers when tokens reach 0 after bad ranking', () => {
+  describe('game over detection', () => {
+    it('loses when no unexpanded nodes remain', () => {
       let state = createGame(42, stubGameData)
-      // Set tokens low so a bad ranking causes game over
-      state = { ...state, tokens: 2 }
-
       state = expandNode(state, state.graph.nodes[0].id)
-      // Submit in reverse order (worst ranking) to get negative token delta
-      const candidates = state.currentRound!.candidates.map((c) => c.word)
-      const reversed = [...candidates].reverse()
-      const { state: evaluated } = submitRanking(state, reversed)
 
-      // If tokens went to 0 or below, game should be over
-      if (evaluated.tokens <= 0) {
-        expect(evaluated.phase).toBe('GAME_OVER')
-        expect(isGameOver(evaluated)).toBe(true)
-        // Candidates should have been converted to permanent
-        const candidateNodes = evaluated.graph.nodes.filter((n) => n.isCandidate)
-        expect(candidateNodes).toHaveLength(0)
+      // Submit reversed ranking — all candidates likely wrong
+      const sorted = [...state.currentRound!.candidates].sort(
+        (a, b) => b.similarity - a.similarity
+      )
+      const reversed = [...sorted].reverse().map((c) => c.word)
+      const { state: evaluated } = submitRanking(state, reversed)
+      const continued = continueFromEvaluation(evaluated)
+
+      // If no unexpanded nodes remain, game should be over
+      const hasUnexpanded = continued.graph.nodes.some((n) => !n.expanded)
+      if (!hasUnexpanded) {
+        expect(continued.phase).toBe('GAME_OVER')
+        expect(continued.won).toBe(false)
+        expect(isGameOver(continued)).toBe(true)
       }
+    })
+
+    it('exports TARGET_NODES constant', () => {
+      expect(TARGET_NODES).toBe(100)
     })
   })
 

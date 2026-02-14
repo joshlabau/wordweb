@@ -20,18 +20,13 @@ export function EvaluationOverlay({ result, onContinue }: EvaluationOverlayProps
           {correct}/{total} correct
         </div>
 
-        <div className="evaluation-overlay__stats">
-          <div
-            className={`evaluation-overlay__tokens evaluation-overlay__tokens--${correct > 0 ? 'positive' : 'negative'}`}
-          >
-            +{correct} token{correct !== 1 ? 's' : ''}
-          </div>
-          {correct < total && (
+        {correct < total && (
+          <div className="evaluation-overlay__stats">
             <div className="evaluation-overlay__removed">
               {total - correct} word{total - correct !== 1 ? 's' : ''} will disappear
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
         <button
           className="btn btn-ghost evaluation-overlay__reveal"

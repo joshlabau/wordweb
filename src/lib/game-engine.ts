@@ -9,7 +9,7 @@ import { createRng, shuffle } from './prng'
 import { resolveParent, sampleCandidates } from './game-data'
 import { scoreRanking } from './scoring'
 
-const INITIAL_TOKENS = 10
+const TARGET_NODES = 100
 const CANDIDATES_PER_ROUND = 5
 
 let nextNodeId = 0
@@ -43,8 +43,7 @@ export function createGame(seed: number, gameData: GameData): GameState {
   return {
     seed,
     phase: 'IDLE',
-    tokens: INITIAL_TOKENS,
-    score: 0,
+    won: false,
     roundsPlayed: 0,
     totalAccuracy: 0,
     bestRoundAccuracy: 0,
@@ -193,8 +192,6 @@ export function submitRanking(
     state: {
       ...state,
       phase: 'EVALUATING',
-      tokens: state.tokens + result.tokenDelta,
-      score: state.score + result.correctWords.length,
       roundsPlayed: state.roundsPlayed + 1,
       totalAccuracy: state.totalAccuracy + result.accuracy,
       bestRoundAccuracy: Math.max(state.bestRoundAccuracy, result.accuracy),
@@ -230,6 +227,32 @@ export function continueFromEvaluation(state: GameState): GameState {
     (e) => keptIds.has(e.source) && keptIds.has(e.target)
   )
 
+  // Check win/lose conditions
+  const permanentCount = updatedNodes.length
+  const hasUnexpanded = updatedNodes.some((n) => !n.expanded)
+
+  if (permanentCount >= TARGET_NODES) {
+    return {
+      ...state,
+      phase: 'GAME_OVER',
+      won: true,
+      graph: { nodes: updatedNodes, edges: updatedEdges },
+      currentRound: null,
+      lastResult: null,
+    }
+  }
+
+  if (!hasUnexpanded) {
+    return {
+      ...state,
+      phase: 'GAME_OVER',
+      won: false,
+      graph: { nodes: updatedNodes, edges: updatedEdges },
+      currentRound: null,
+      lastResult: null,
+    }
+  }
+
   return {
     ...state,
     phase: 'IDLE',
@@ -249,6 +272,7 @@ export function getRunSummary(state: GameState): RunSummary {
   const permanentNodes = state.graph.nodes.filter((n) => !n.isCandidate)
   const maxDepth = Math.max(...permanentNodes.map((n) => n.depth), 0)
   return {
+    won: state.won,
     totalNodes: permanentNodes.length,
     maxDepth,
     roundsPlayed: state.roundsPlayed,
@@ -257,8 +281,7 @@ export function getRunSummary(state: GameState): RunSummary {
         ? Math.round(state.totalAccuracy / state.roundsPlayed)
         : 0,
     bestRoundAccuracy: state.bestRoundAccuracy,
-    score: state.score,
   }
 }
 
-export { INITIAL_TOKENS, CANDIDATES_PER_ROUND }
+export { TARGET_NODES, CANDIDATES_PER_ROUND }

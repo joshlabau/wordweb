@@ -1,8 +1,8 @@
 import { useCallback } from 'react'
 import type { GameState, RoundResult } from '@/types/game'
+import { TARGET_NODES } from '@/lib/game-engine'
 import { GraphCanvas } from './GraphCanvas'
 import { EvaluationOverlay } from './EvaluationOverlay'
-import { TokenCounter } from './TokenCounter'
 
 interface GameScreenProps {
   gameState: GameState
@@ -39,14 +39,16 @@ export function GameScreen({
 
   const rankingCount = gameState.currentRound?.playerRanking.length ?? 0
   const canSubmit = rankingCount >= 2
+  const permanentNodes = gameState.graph.nodes.filter((n) => !n.isCandidate).length
 
   return (
     <div className="game-screen">
       <div className="game-screen__header">
-        <TokenCounter
-          tokens={gameState.tokens}
-          delta={lastResult?.tokenDelta}
-        />
+        <div className="node-progress">
+          <span className="node-progress__count">{permanentNodes}</span>
+          <span className="node-progress__target">/{TARGET_NODES}</span>
+          <span className="node-progress__label">nodes</span>
+        </div>
         <div className="game-screen__info">
           Round {gameState.roundsPlayed + 1}
         </div>

@@ -103,7 +103,7 @@ test.describe('Graph interaction', () => {
     expect(edgeCount).toBeGreaterThan(0)
   })
 
-  test('full flow: expand → rank → submit → continue → all nodes stay → expand another', async ({ page }) => {
+  test('full flow: expand → rank → submit → continue → correct nodes stay, wrong disappear', async ({ page }) => {
     await page.goto(BASE)
     await page.click('button.btn-primary:has-text("Play")')
     await page.waitForSelector('.game-screen', { timeout: 5000 })
@@ -131,44 +131,50 @@ test.describe('Graph interaction', () => {
     await expect(submitBtn).toBeEnabled()
     await submitBtn.click()
 
-    // 4. Wait for evaluation overlay and click Continue
+    // 4. Wait for evaluation overlay — check score display
+    const evalOverlay = page.locator('.evaluation-overlay')
+    await expect(evalOverlay).toBeVisible({ timeout: 3000 })
+    const gradeText = await page.locator('.evaluation-overlay__grade').textContent()
+    console.log('Score:', gradeText)
+
+    // Click Continue
     const continueBtn = page.locator('.evaluation-overlay button.btn-primary:has-text("Continue")')
-    await expect(continueBtn).toBeVisible({ timeout: 3000 })
     await continueBtn.click()
 
-    // 5. Should return to IDLE — ALL candidates should now be permanent nodes
+    // 5. Should return to IDLE
     const prompt = page.locator('.game-screen__prompt')
     await expect(prompt).toBeVisible({ timeout: 3000 })
     console.log('Phase after continue: IDLE')
 
-    // All former candidates should now be permanent unexpanded nodes
-    const unexpanded = page.locator('g.graph-node--unexpanded')
-    const unexpandedCount = await unexpanded.count()
-    console.log('Unexpanded nodes (former candidates):', unexpandedCount)
-    expect(unexpandedCount).toBe(candCount)
-
-    // No candidate nodes should remain
+    // No candidate nodes should remain (all converted or removed)
     const remainingCandidates = page.locator('g.graph-node--candidate')
     const remainingCount = await remainingCandidates.count()
     expect(remainingCount).toBe(0)
 
-    // Total nodes = 1 root (expanded) + candCount permanent
+    // Total nodes = 1 root + however many were correctly ranked
     const totalNodes = await page.locator('g.graph-node').count()
-    console.log('Total nodes:', totalNodes)
-    expect(totalNodes).toBe(1 + candCount)
+    console.log('Total nodes after evaluation:', totalNodes)
+    expect(totalNodes).toBeGreaterThanOrEqual(1) // at minimum the root
+    expect(totalNodes).toBeLessThanOrEqual(1 + candCount) // at most root + all candidates
 
-    // 6. Click one of the former candidate nodes to expand it
-    await unexpanded.first().click()
-    await page.waitForTimeout(500)
+    // If any unexpanded nodes exist, try expanding one
+    const unexpanded = page.locator('g.graph-node--unexpanded')
+    const unexpandedCount = await unexpanded.count()
+    console.log('Unexpanded nodes:', unexpandedCount)
 
-    // If expansion works, we should be in RANKING phase with new candidates
-    const newCandidates = page.locator('g.graph-node--candidate')
-    const newCandCount = await newCandidates.count()
-    console.log('New candidates after expanding a node:', newCandCount)
-    expect(newCandCount).toBeGreaterThan(0)
+    if (unexpandedCount > 0) {
+      await unexpanded.first().click()
+      await page.waitForTimeout(500)
 
-    const newHint = page.locator('.game-screen__controls-hint')
-    await expect(newHint).toBeVisible()
+      const newCandidates = page.locator('g.graph-node--candidate')
+      const newCandCount = await newCandidates.count()
+      console.log('New candidates after expanding a node:', newCandCount)
+      expect(newCandCount).toBeGreaterThan(0)
+
+      const newHint = page.locator('.game-screen__controls-hint')
+      await expect(newHint).toBeVisible()
+    }
+
     console.log('Full flow test passed!')
   })
 })

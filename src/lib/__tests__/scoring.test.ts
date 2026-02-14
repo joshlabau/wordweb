@@ -13,13 +13,13 @@ const candidates: RoundCandidate[] = [
 // Ideal order: sea, water, lake, shore, ridge
 
 describe('scoreRanking', () => {
-  it('gives 100% accuracy and full tokens for perfect ranking', () => {
+  it('gives 100% accuracy for perfect ranking', () => {
     const result = scoreRanking(
       ['sea', 'water', 'lake', 'shore', 'ridge'],
       candidates
     )
     expect(result.accuracy).toBe(100)
-    expect(result.tokenDelta).toBe(5)
+    expect(result.correctWords).toHaveLength(5)
     expect(result.correctWords).toEqual(['sea', 'water', 'lake', 'shore', 'ridge'])
   })
 
@@ -31,7 +31,7 @@ describe('scoreRanking', () => {
       candidates
     )
     expect(result.accuracy).toBe(20)
-    expect(result.tokenDelta).toBe(1)
+    expect(result.correctWords).toHaveLength(1)
     expect(result.correctWords).toEqual(['lake'])
   })
 
@@ -44,7 +44,7 @@ describe('scoreRanking', () => {
       candidates
     )
     expect(result.accuracy).toBe(60)
-    expect(result.tokenDelta).toBe(3)
+    expect(result.correctWords).toHaveLength(3)
     expect(result.correctWords).toEqual(['sea', 'shore', 'ridge'])
   })
 
@@ -57,7 +57,7 @@ describe('scoreRanking', () => {
       candidates
     )
     expect(result.accuracy).toBe(0)
-    expect(result.tokenDelta).toBe(0)
+    expect(result.correctWords).toHaveLength(0)
     expect(result.correctWords).toEqual([])
   })
 
@@ -88,6 +88,6 @@ describe('scoreRanking', () => {
     // With exact matching, only the exact position matters
     const result = scoreRanking(['a', 'b', 'c'], tied)
     expect(result.correctWords).toContain('c')
-    expect(result.tokenDelta).toBeGreaterThanOrEqual(1)
+    expect(result.correctWords.length).toBeGreaterThanOrEqual(1)
   })
 })

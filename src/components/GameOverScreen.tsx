@@ -10,10 +10,17 @@ export function GameOverScreen({ summary, onPlayAgain, onHome }: GameOverScreenP
   return (
     <div className="game-over-screen">
       <div className="game-over-screen__card">
-        <h2 className="game-over-screen__title">Game Over</h2>
+        <h2 className={`game-over-screen__title game-over-screen__title--${summary.won ? 'won' : 'lost'}`}>
+          {summary.won ? 'You Win!' : 'No Nodes Left'}
+        </h2>
+        <p className="game-over-screen__subtitle">
+          {summary.won
+            ? `You grew your graph to ${summary.totalNodes} nodes!`
+            : `Your graph reached ${summary.totalNodes} nodes before running out of paths.`}
+        </p>
 
         <div className="game-over-screen__stats">
-          <div className="stat">
+          <div className="stat stat--highlight">
             <span className="stat__value">{summary.totalNodes}</span>
             <span className="stat__label">Nodes</span>
           </div>
@@ -32,10 +39,6 @@ export function GameOverScreen({ summary, onPlayAgain, onHome }: GameOverScreenP
           <div className="stat">
             <span className="stat__value">{summary.bestRoundAccuracy}%</span>
             <span className="stat__label">Best Round</span>
-          </div>
-          <div className="stat stat--highlight">
-            <span className="stat__value">{summary.score}</span>
-            <span className="stat__label">Score</span>
           </div>
         </div>
 

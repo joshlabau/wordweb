@@ -19,6 +19,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+from nltk.stem import PorterStemmer
 
 # ── Configuration ──────────────────────────────────────────────────────
 
@@ -31,9 +32,13 @@ MIN_WORD_LENGTH = 3
 MAX_VOCABULARY = 12000
 NUM_PARENTS = 5000
 
-# Candidate selection: skip the top SKIP most similar, then take the next COUNT
-CANDIDATE_SKIP = 2   # skip #1 and #2 most similar
-CANDIDATE_COUNT = 5  # take #3 through #7
+# Candidate selection: 3 bands, 2+2+1 = 5 candidates per parent
+BANDS = [
+    (0.60, 1.00, 2),  # high similarity — 2 candidates
+    (0.35, 0.60, 2),  # medium similarity — 2 candidates
+    (0.10, 0.35, 1),  # low similarity — 1 candidate
+]
+MIN_CANDIDATES = 5
 
 
 def load_glove(path: str) -> tuple[dict[str, np.ndarray], int]:
@@ -112,13 +117,16 @@ def select_candidates(
     similarities: np.ndarray,
     parent_idx: int,
     parent_set: set[int],
+    stems: list[str],
 ) -> list[dict]:
-    """Select candidates ranked #3–#7 most similar (among parent words).
+    """Select candidates from similarity bands, filtering same-stem words.
 
-    Skips the top 2 most similar to make ranking harder — all candidates
-    are close in similarity so the player can't rely on obvious outliers.
+    Picks up to the configured count per band.
     Only picks from parent words so every candidate is expandable.
+    Skips words that share a stem with the parent or already-selected candidates.
     """
+    parent_stem = stems[parent_idx]
+
     # Get similarities for parent words only (excluding self)
     scored = []
     for idx in parent_set:
@@ -126,11 +134,23 @@ def select_candidates(
             continue
         scored.append((idx, float(similarities[idx])))
 
-    # Sort by similarity descending
-    scored.sort(key=lambda x: -x[1])
-
-    # Skip top CANDIDATE_SKIP, take next CANDIDATE_COUNT
-    selected = scored[CANDIDATE_SKIP : CANDIDATE_SKIP + CANDIDATE_COUNT]
+    # Bucket into bands, skipping same-stem words
+    selected = []
+    used_stems: set[str] = {parent_stem}
+    for lo, hi, count in BANDS:
+        in_band = [(idx, sim) for idx, sim in scored if lo <= sim < hi]
+        # Sort by similarity descending within band
+        in_band.sort(key=lambda x: -x[1])
+        picked = 0
+        for idx, sim in in_band:
+            if picked >= count:
+                break
+            stem = stems[idx]
+            if stem in used_stems:
+                continue
+            selected.append((idx, sim))
+            used_stems.add(stem)
+            picked += 1
 
     return [
         {"word": idx, "similarity": round(sim, 2)}
@@ -161,15 +181,30 @@ def main():
     print("Building embedding matrix...")
     matrix = build_embedding_matrix(vocabulary, glove, dim)
 
+    # Build stem lookup for deduplication
+    print("Computing word stems...")
+    stemmer = PorterStemmer()
+    stems = [stemmer.stem(w) for w in vocabulary]
+    unique_stems = len(set(stems))
+    print(f"  {len(vocabulary)} words → {unique_stems} unique stems")
+
     # Score all words as potential parents
-    # Good parents have many similar words (so #3-#7 are meaningfully close)
+    # Good parents have words across all similarity bands
     print("Scoring parent word quality...")
     parent_scores = []
     for i in range(len(vocabulary)):
         sims = matrix @ matrix[i]
-        # Score = sum of top 10 similarities (excluding self)
-        top_sims = np.sort(sims)[-11:-1]  # top 10 excluding self (last = self = 1.0)
-        score = float(np.sum(top_sims))
+        # Count how many bands have at least 1 word
+        bands_covered = 0
+        for lo, hi, count in BANDS:
+            count_in_band = int(np.sum((sims >= lo) & (sims < hi)))
+            if count_in_band >= count:
+                bands_covered += 1
+        # Also consider overall richness (sum of top similarities)
+        top_sims = np.sort(sims)[-11:-1]
+        richness = float(np.sum(top_sims))
+        # Primary: band coverage, secondary: richness
+        score = bands_covered * 100 + richness
         parent_scores.append((i, score))
 
     # Select top parents
@@ -181,15 +216,15 @@ def main():
         print("Error: No suitable parent words found. Check your data.")
         sys.exit(1)
 
-    # Generate candidates for each parent (#3-#7 most similar parent words)
+    # Generate candidates for each parent (band-spread selection)
     print("Generating candidates...")
     parent_set = set(parent_indices)
     parents = []
 
     for parent_idx in parent_indices:
         sims = matrix @ matrix[parent_idx]
-        candidates = select_candidates(sims, parent_idx, parent_set)
-        if len(candidates) >= CANDIDATE_COUNT:
+        candidates = select_candidates(sims, parent_idx, parent_set, stems)
+        if len(candidates) >= MIN_CANDIDATES:
             parents.append({"word": parent_idx, "candidates": candidates})
 
     print(f"  Generated {len(parents)} playable parent entries")

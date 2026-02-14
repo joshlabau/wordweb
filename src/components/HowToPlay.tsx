@@ -31,10 +31,10 @@ export function HowToPlay({ onClose }: HowToPlayProps) {
           <div className="how-to-play__step">
             <span className="how-to-play__step-num">3</span>
             <div>
-              <strong>Earn</strong>
+              <strong>Keep or Lose</strong>
               <p>
-                Score tokens based on how close your ranking is to the ideal.
-                Good rankings earn tokens; bad ones cost you.
+                Words you rank in the exact correct position stay in your graph.
+                Wrong ones disappear.
               </p>
             </div>
           </div>
@@ -42,21 +42,10 @@ export function HowToPlay({ onClose }: HowToPlayProps) {
           <div className="how-to-play__step">
             <span className="how-to-play__step-num">4</span>
             <div>
-              <strong>Unlock</strong>
+              <strong>Grow to 100</strong>
               <p>
-                Spend tokens to add a word to your graph. Each unlock costs 3
-                tokens.
-              </p>
-            </div>
-          </div>
-
-          <div className="how-to-play__step">
-            <span className="how-to-play__step-num">5</span>
-            <div>
-              <strong>Grow</strong>
-              <p>
-                Keep expanding and unlocking to grow your graph. The game ends
-                when you run out of tokens!
+                Keep expanding nodes to grow your graph. Reach 100 nodes to win!
+                If you run out of expandable nodes, the game is over.
               </p>
             </div>
           </div>

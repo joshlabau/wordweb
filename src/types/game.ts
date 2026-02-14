@@ -56,7 +56,6 @@ export interface RoundCandidate {
 // Round result after evaluation
 export interface RoundResult {
   accuracy: number // 0-100 (percentage of exact position matches)
-  tokenDelta: number // +1 per exact match
   correctWords: string[] // words the player ranked in the exact correct position
   playerRanking: string[]
   idealRanking: { word: string; similarity: number }[]
@@ -66,8 +65,7 @@ export interface RoundResult {
 export interface GameState {
   seed: number
   phase: GamePhase
-  tokens: number
-  score: number
+  won: boolean // true if player reached target node count
   roundsPlayed: number
   totalAccuracy: number // sum of all round accuracies (for averaging)
   bestRoundAccuracy: number
@@ -83,12 +81,12 @@ export interface GameState {
 
 // End-of-run summary
 export interface RunSummary {
+  won: boolean
   totalNodes: number
   maxDepth: number
   roundsPlayed: number
   averageAccuracy: number
   bestRoundAccuracy: number
-  score: number
 }
 
 // App-level screen state

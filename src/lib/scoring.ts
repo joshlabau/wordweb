@@ -2,8 +2,7 @@ import type { RoundCandidate, RoundResult } from '@/types/game'
 
 /**
  * Score a player's ranking using exact position matching.
- * Each candidate in the exact correct position earns 1 token.
- * Candidates in wrong positions will be removed from the graph.
+ * Candidates in correct positions stay in the graph; wrong ones are removed.
  */
 export function scoreRanking(
   playerRanking: string[],
@@ -27,7 +26,6 @@ export function scoreRanking(
 
   return {
     accuracy,
-    tokenDelta: correctWords.length,
     correctWords,
     playerRanking,
     idealRanking: idealRanking.map((c) => ({ word: c.word, similarity: c.similarity })),
