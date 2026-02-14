@@ -1,4 +1,5 @@
 import { getDailySeed } from '@/lib/prng'
+import { NetworkBackground } from '@/components/NetworkBackground'
 
 interface HomeScreenProps {
   onPlay: (seed: number) => void
@@ -16,6 +17,7 @@ export function HomeScreen({ onPlay, onHowToPlay }: HomeScreenProps) {
 
   return (
     <div className="home-screen">
+      <NetworkBackground />
       <div className="home-content">
         <h1 className="home-title">Word Web</h1>
         <p className="home-subtitle">

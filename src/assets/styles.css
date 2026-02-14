@@ -127,11 +127,24 @@ body {
   justify-content: center;
   height: 100%;
   padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.network-background {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .home-content {
   text-align: center;
   max-width: 400px;
+  position: relative;
+  z-index: 1;
 }
 
 .home-title {
