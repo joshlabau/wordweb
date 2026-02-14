@@ -17,7 +17,7 @@ export function HomeScreen({ onPlay, onHowToPlay }: HomeScreenProps) {
   return (
     <div className="home-screen">
       <div className="home-content">
-        <h1 className="home-title">Synonimble</h1>
+        <h1 className="home-title">Word Web</h1>
         <p className="home-subtitle">
           Grow a graph of meaning. Rank words by similarity.
         </p>
